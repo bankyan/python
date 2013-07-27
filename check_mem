@@ -1,0 +1,77 @@
+#!/usr/bin/env python
+import re
+import sys
+from optparse import OptionParser
+
+OK=0
+WARNING=1
+CRITICAL=2
+UNKNOWN=3
+def opt():
+    parser = OptionParser(usage="usage: %prog -w WARNING -c CRITICAL")
+    parser.add_option("-c", 
+                      dest="critical", 
+                      action="store",
+                      default=100,
+                      type="str",)
+    parser.add_option("-w", 
+                      dest="warning", 
+                      action="store",
+                      default=500,
+                      type="str",)
+    return parser.parse_args()
+
+def converUnit(s):
+    unit = {'G':2**20,'M':2**10,'K':1,'T':2**30,'g':2**20,'m':2**10,'k':1,'t':2**30}
+    s = s.lower()
+    lastchar = s[-1]    
+    num = int(s[:-1])
+    if lastchar in unit:
+        return num*unit[lastchar]
+    else:
+        return s
+
+def get_mem():
+    topen=open('/proc/meminfo')
+    tread=topen.read()
+    mt=r'MemFree:.*'
+    mtotal="".join(re.findall(mt,tread)).split(':')[1].strip().split()[0]
+    return float(mtotal)
+"""print get_mem()"""
+
+def getUnit(free_mem):
+    m=2**10
+    g=2**20
+    t=2**30
+    k=1
+    if m <= free_mem < g:
+        t = "%.1fM" % (free_mem/m)
+    elif g <= free_mem < t:
+        t = "%.1fG" % (free_mem/g)
+    elif free_mem >= t:
+        t = "%.1fT" % (free_mem/t)
+    else:
+        t = "%dK" % (free_mem/k)
+    return t
+
+def main():
+    opts,args = opt()
+    w=converUnit(opts.warning)
+    c=converUnit(opts.critical)
+    free_mem = get_mem()
+    gs=getUnit(free_mem)
+    """print w,c"""
+    if c < free_mem <= w :
+        print "WARNING,free_mem is %s" % (gs)
+        sys.exit(WARNING)
+    elif free_mem <= c:
+        print "CRITICAL,free_mem is %s" % (gs)
+        sys.exit(CRITICAL)
+    elif free_mem > w:
+        print "OK,free_mem is %s" % (gs)
+        sys.exit(OK)
+    else:
+        sys.exit(UNKNOWN)
+
+if __name__ == "__main__":
+    main()
